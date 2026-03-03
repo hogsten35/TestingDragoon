@@ -1,0 +1,620 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"/>
+  <title>Veilbound Clash (2-min Dragoon-ish)</title>
+  <style>
+    :root{
+      --bg:#07090d;
+      --panel:#0e1420cc;
+      --line:#2a3a55;
+      --text:#e8eef7;
+      --muted:#a9b7cc;
+      --accent:#5fd0ff;
+      --accent2:#b36bff;
+      --good:#6dff9e;
+      --bad:#ff6d7a;
+      --warn:#ffd36d;
+    }
+    html,body{height:100%;margin:0;background:radial-gradient(1200px 800px at 50% 30%, #0f1630 0%, var(--bg) 55%, #000 100%); color:var(--text); font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;}
+    canvas{display:block;width:100vw;height:100vh; touch-action:manipulation;}
+    .ui{
+      position:fixed; inset:0; pointer-events:none;
+      display:flex; flex-direction:column; justify-content:space-between;
+      padding:12px;
+    }
+    .topRow{display:flex; gap:10px; align-items:flex-start;}
+    .box{
+      pointer-events:none;
+      background:linear-gradient(180deg, #111a2cdd, var(--panel));
+      border:1px solid color-mix(in srgb, var(--line) 85%, #000 15%);
+      box-shadow:0 12px 40px #0008;
+      border-radius:12px;
+      padding:10px 12px;
+      backdrop-filter: blur(6px);
+      min-width: 180px;
+    }
+    .title{font-weight:800; letter-spacing:.08em; font-size:12px; color:var(--muted); text-transform:uppercase;}
+    .row{display:flex; align-items:center; justify-content:space-between; gap:10px; margin-top:6px;}
+    .bar{height:10px; background:#0b0f17; border:1px solid #1f2b3f; border-radius:999px; overflow:hidden; flex:1;}
+    .fill{height:100%; width:50%; background:linear-gradient(90deg,var(--accent),var(--accent2)); border-radius:999px;}
+    .fill.hpP{background:linear-gradient(90deg,#4ad6ff,#8d6bff);}
+    .fill.hpE{background:linear-gradient(90deg,#ff5f78,#ffb35f);}
+    .mini{font-size:12px; color:var(--muted);}
+    .big{font-size:14px; font-weight:700;}
+    .bottom{
+      display:flex; flex-direction:column; gap:10px; align-items:center;
+    }
+    .cmd{
+      pointer-events:auto;
+      display:flex; gap:10px; flex-wrap:wrap; justify-content:center;
+    }
+    button{
+      pointer-events:auto;
+      appearance:none; border:1px solid #2a3a55;
+      background:linear-gradient(180deg,#101a2c,#0a0f19);
+      color:var(--text);
+      padding:12px 14px; border-radius:12px;
+      font-weight:800; letter-spacing:.04em;
+      box-shadow:0 10px 24px #0008;
+      min-width: 110px;
+    }
+    button:active{transform:translateY(1px); filter:brightness(1.1);}
+    button[disabled]{opacity:.4; filter:saturate(.7);}
+
+    .hint{
+      pointer-events:none;
+      max-width: 720px;
+      text-align:center;
+      color:var(--muted);
+      font-size:12px;
+      line-height:1.35;
+    }
+
+    .overlay{
+      pointer-events:none;
+      position:fixed; inset:0;
+      display:flex; align-items:center; justify-content:center;
+      background:radial-gradient(800px 500px at 50% 40%, #0e1424cc, #000c);
+      opacity:0; transition:opacity .2s ease;
+    }
+    .overlay.show{opacity:1;}
+    .card{
+      width:min(560px, 92vw);
+      background:linear-gradient(180deg,#0f1730ee,#080b12ee);
+      border:1px solid #2a3a55;
+      border-radius:18px;
+      padding:18px;
+      box-shadow:0 24px 80px #000c;
+    }
+    .card h1{margin:0 0 8px 0; font-size:18px; letter-spacing:.06em; text-transform:uppercase;}
+    .card p{margin:8px 0; color:var(--muted); font-size:13px; line-height:1.45;}
+    .kbd{display:inline-block; padding:2px 8px; border:1px solid #2a3a55; border-radius:999px; background:#0b1220; color:var(--text); font-weight:800; font-size:12px;}
+    .pulse{
+      position:fixed; left:50%; top:62%;
+      transform:translate(-50%,-50%);
+      width:min(520px, 92vw);
+      pointer-events:none;
+      display:flex; flex-direction:column; align-items:center; gap:10px;
+      opacity:0; transition:opacity .12s ease;
+    }
+    .pulse.show{opacity:1;}
+    .ring{
+      width:min(420px, 84vw); height:14px;
+      border-radius:999px;
+      background:#0b0f17; border:1px solid #1f2b3f;
+      overflow:hidden;
+      box-shadow:0 10px 40px #000a inset;
+    }
+    .window{
+      position:relative; height:100%;
+      width:28%;
+      left:36%;
+      background:linear-gradient(90deg, #0000, color-mix(in srgb, var(--good) 55%, #fff0), #0000);
+      border-left:1px dashed #ffffff33;
+      border-right:1px dashed #ffffff33;
+    }
+    .cursor{
+      position:relative; height:100%; width:3px;
+      background:linear-gradient(180deg,#fff,#a8d7ff);
+      box-shadow:0 0 18px #9fd8ffcc;
+      left:0%;
+    }
+    .msg{
+      font-weight:900; letter-spacing:.05em;
+      text-transform:uppercase;
+      font-size:12px;
+      color:var(--muted);
+    }
+    .msg strong{color:var(--text);}
+  </style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div class="ui">
+  <div class="topRow">
+    <div class="box" style="flex:1;">
+      <div class="title">Veilbound Clash</div>
+      <div class="row">
+        <div class="big">You</div>
+        <div class="mini" id="pStats">HP 30/30 · MP 6/6</div>
+      </div>
+      <div class="row">
+        <div class="mini" style="width:42px;">HP</div>
+        <div class="bar"><div class="fill hpP" id="pHP"></div></div>
+      </div>
+      <div class="row">
+        <div class="mini" style="width:42px;">MP</div>
+        <div class="bar"><div class="fill" id="pMP"></div></div>
+      </div>
+    </div>
+
+    <div class="box" style="flex:1;">
+      <div class="title">Opponent</div>
+      <div class="row">
+        <div class="big">Veil Warden</div>
+        <div class="mini" id="eStats">HP 34/34</div>
+      </div>
+      <div class="row">
+        <div class="mini" style="width:42px;">HP</div>
+        <div class="bar"><div class="fill hpE" id="eHP"></div></div>
+      </div>
+      <div class="row">
+        <div class="mini" style="width:42px;">State</div>
+        <div class="mini" id="state">Waiting</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="bottom">
+    <div class="cmd">
+      <button id="btnAttack">Attack</button>
+      <button id="btnGuard">Guard</button>
+      <button id="btnSpell">Spark (2 MP)</button>
+      <button id="btnPotion">Potion (x1)</button>
+    </div>
+    <div class="hint" id="hint">
+      Tap <span class="kbd">Attack</span>, then tap the screen when the glowing cursor passes through the green window to chain hits.
+      Desktop: <span class="kbd">A</span> attack, <span class="kbd">G</span> guard, <span class="kbd">S</span> spell, <span class="kbd">P</span> potion, <span class="kbd">Space</span> time-hit.
+    </div>
+  </div>
+</div>
+
+<div class="pulse" id="timingUI">
+  <div class="ring">
+    <div class="window"></div>
+    <div class="cursor" id="cursor"></div>
+  </div>
+  <div class="msg" id="timingMsg"><strong>Time it</strong> · Tap when cursor hits the window</div>
+</div>
+
+<div class="overlay" id="overlay">
+  <div class="card">
+    <h1 id="endTitle">Victory</h1>
+    <p id="endText"></p>
+    <p style="margin-top:12px; color:var(--muted);">
+      Refresh to replay. (Tip: land 2–3 timed hits for that Dragoon-ish feel.)
+    </p>
+  </div>
+</div>
+
+<script>
+(() => {
+  const clamp = (v,a,b)=>Math.max(a,Math.min(b,v));
+  const lerp = (a,b,t)=>a+(b-a)*t;
+
+  // --- Canvas scene (simple “pre-render vibe”: silhouettes + fog + parallax) ---
+  const canvas = document.getElementById('c');
+  const ctx = canvas.getContext('2d', { alpha: false });
+  let W=0,H=0, DPR=1;
+
+  function resize(){
+    DPR = Math.max(1, Math.min(2.5, window.devicePixelRatio || 1));
+    W = Math.floor(window.innerWidth);
+    H = Math.floor(window.innerHeight);
+    canvas.width = Math.floor(W * DPR);
+    canvas.height = Math.floor(H * DPR);
+    canvas.style.width = W + 'px';
+    canvas.style.height = H + 'px';
+    ctx.setTransform(DPR,0,0,DPR,0,0);
+  }
+  window.addEventListener('resize', resize, { passive:true });
+  resize();
+
+  // --- UI refs ---
+  const pHP = document.getElementById('pHP');
+  const pMP = document.getElementById('pMP');
+  const eHP = document.getElementById('eHP');
+  const pStats = document.getElementById('pStats');
+  const eStats = document.getElementById('eStats');
+  const stateEl = document.getElementById('state');
+
+  const btnAttack = document.getElementById('btnAttack');
+  const btnGuard  = document.getElementById('btnGuard');
+  const btnSpell  = document.getElementById('btnSpell');
+  const btnPotion = document.getElementById('btnPotion');
+
+  const timingUI = document.getElementById('timingUI');
+  const cursorEl = document.getElementById('cursor');
+  const timingMsg = document.getElementById('timingMsg');
+
+  const overlay = document.getElementById('overlay');
+  const endTitle = document.getElementById('endTitle');
+  const endText = document.getElementById('endText');
+
+  // --- Game state ---
+  const P = { hp:30, hpMax:30, mp:6, mpMax:6, guard:false, potions:1 };
+  const E = { hp:34, hpMax:34 };
+
+  let phase = "PLAYER_TURN"; // PLAYER_TURN, TIMING, ENEMY_TURN, END
+  let message = "Waiting";
+  let shake = 0;
+
+  // Timing (“Addition-ish”): 3 possible taps, each has a window
+  let timing = {
+    active:false,
+    step:0,          // 0..2
+    cursor:0,        // 0..1
+    speed:0.85,      // base, scales per step
+    dir:1,
+    windowCenter:0.50,
+    windowHalf:0.075,
+    resolveQueued:false
+  };
+
+  function uiState(){
+    const pHpPct = (P.hp / P.hpMax) * 100;
+    const pMpPct = (P.mp / P.mpMax) * 100;
+    const eHpPct = (E.hp / E.hpMax) * 100;
+
+    pHP.style.width = clamp(pHpPct,0,100) + "%";
+    pMP.style.width = clamp(pMpPct,0,100) + "%";
+    eHP.style.width = clamp(eHpPct,0,100) + "%";
+
+    pStats.textContent = `HP ${P.hp}/${P.hpMax} · MP ${P.mp}/${P.mpMax}`;
+    eStats.textContent = `HP ${E.hp}/${E.hpMax}`;
+    stateEl.textContent = message;
+
+    const canAct = phase === "PLAYER_TURN";
+    btnAttack.disabled = !canAct;
+    btnGuard.disabled  = !canAct;
+    btnSpell.disabled  = !canAct || P.mp < 2;
+    btnPotion.disabled = !canAct || P.potions <= 0 || P.hp >= P.hpMax;
+  }
+
+  function setMessage(m){ message = m; uiState(); }
+
+  function endGame(victory){
+    phase = "END";
+    overlay.classList.add('show');
+    endTitle.textContent = victory ? "Victory" : "Defeat";
+    endText.textContent = victory
+      ? "The Veil Warden collapses into ash-light. The path ahead breathes... briefly."
+      : "Your sight dims beneath violet fog. The Veil does not forgive missed beats.";
+    uiState();
+  }
+
+  function damageEnemy(dmg){
+    E.hp = clamp(E.hp - dmg, 0, E.hpMax);
+    shake = Math.min(18, shake + 10);
+    if (E.hp <= 0) endGame(true);
+    uiState();
+  }
+
+  function damagePlayer(dmg){
+    const actual = P.guard ? Math.ceil(dmg * 0.55) : dmg;
+    P.hp = clamp(P.hp - actual, 0, P.hpMax);
+    shake = Math.min(18, shake + 6);
+    if (P.hp <= 0) endGame(false);
+    uiState();
+  }
+
+  function rand(a,b){ return a + Math.random()*(b-a); }
+
+  // --- Actions ---
+  function startTimingAttack(){
+    phase = "TIMING";
+    P.guard = false;
+    timing.active = true;
+    timing.step = 0;
+    timing.cursor = 0.06;
+    timing.dir = 1;
+    timing.windowCenter = rand(0.42, 0.58);
+    timing.windowHalf = 0.075;
+    timing.speed = 0.95;
+    timing.resolveQueued = false;
+    timingUI.classList.add('show');
+    timingMsg.innerHTML = "<strong>Strike</strong> · Tap on the beat";
+    setMessage("Addition: Step 1/3");
+    uiState();
+  }
+
+  function resolveTiming(success){
+    // Base damage per step
+    const base = 4;
+    const bonus = 2;
+
+    if (!success){
+      // Miss ends chain and hands turn to enemy
+      timing.active = false;
+      timingUI.classList.remove('show');
+      setMessage("Miss…");
+      setTimeout(enemyTurn, 450);
+      return;
+    }
+
+    // Hit!
+    const stepDmg = base + timing.step * bonus;
+    damageEnemy(stepDmg);
+    setMessage(`Hit! (${timing.step+1}/3)`);
+
+    timing.step++;
+
+    if (phase === "END") return;
+
+    if (timing.step >= 3){
+      // Finished chain
+      timing.active = false;
+      timingUI.classList.remove('show');
+      setMessage("Chain complete!");
+      setTimeout(enemyTurn, 450);
+      return;
+    }
+
+    // Next step: faster + smaller window (harder)
+    timing.windowCenter = rand(0.38, 0.62);
+    timing.windowHalf = Math.max(0.045, timing.windowHalf - 0.012);
+    timing.speed = Math.min(1.65, timing.speed + 0.22);
+    setMessage(`Addition: Step ${timing.step+1}/3`);
+  }
+
+  function doGuard(){
+    if (phase !== "PLAYER_TURN") return;
+    P.guard = true;
+    setMessage("Guard up (reduced damage).");
+    setTimeout(enemyTurn, 350);
+  }
+
+  function doSpell(){
+    if (phase !== "PLAYER_TURN" || P.mp < 2) return;
+    P.guard = false;
+    P.mp -= 2;
+    setMessage("Spark!");
+    // Spell: reliable damage
+    setTimeout(() => {
+      damageEnemy(9);
+      if (phase !== "END") setTimeout(enemyTurn, 450);
+    }, 220);
+  }
+
+  function doPotion(){
+    if (phase !== "PLAYER_TURN" || P.potions <= 0 || P.hp >= P.hpMax) return;
+    P.guard = false;
+    P.potions--;
+    setMessage("Potion used.");
+    setTimeout(() => {
+      P.hp = clamp(P.hp + 12, 0, P.hpMax);
+      uiState();
+      setTimeout(enemyTurn, 420);
+    }, 220);
+  }
+
+  function enemyTurn(){
+    if (phase === "END") return;
+    phase = "ENEMY_TURN";
+    timing.active = false;
+    timingUI.classList.remove('show');
+
+    const roll = Math.random();
+    let dmg = 0;
+    let text = "";
+
+    if (roll < 0.20){
+      dmg = 4;
+      text = "Warden probes (light hit).";
+    } else if (roll < 0.75){
+      dmg = 7;
+      text = "Warden cleaves.";
+    } else {
+      dmg = 10;
+      text = "Warden crushes (heavy)!";
+    }
+
+    setMessage(text);
+    setTimeout(() => {
+      damagePlayer(dmg);
+      if (phase !== "END"){
+        P.guard = false; // guard only lasts one enemy hit
+        phase = "PLAYER_TURN";
+        setMessage("Your turn.");
+        uiState();
+      }
+    }, 520);
+  }
+
+  // --- Input ---
+  btnAttack.addEventListener('click', startTimingAttack);
+  btnGuard.addEventListener('click', doGuard);
+  btnSpell.addEventListener('click', doSpell);
+  btnPotion.addEventListener('click', doPotion);
+
+  function tapTiming(){
+    if (phase !== "TIMING" || !timing.active) return;
+    const inWindow = Math.abs(timing.cursor - timing.windowCenter) <= timing.windowHalf;
+    // quick feedback text
+    timingMsg.innerHTML = inWindow ? "<strong>Good</strong> · keep going" : "<strong>Miss</strong> · chain breaks";
+    resolveTiming(inWindow);
+  }
+
+  // Tap anywhere for timing while in TIMING
+  window.addEventListener('pointerdown', (e) => {
+    // If you tap a button, let it work; otherwise treat as timing tap
+    const t = e.target;
+    if (t && t.tagName === "BUTTON") return;
+    tapTiming();
+  }, { passive:true });
+
+  window.addEventListener('keydown', (e) => {
+    const k = e.key.toLowerCase();
+    if (k === 'a') startTimingAttack();
+    if (k === 'g') doGuard();
+    if (k === 's') doSpell();
+    if (k === 'p') doPotion();
+    if (e.code === 'Space') { e.preventDefault(); tapTiming(); }
+  });
+
+  // --- Rendering (simple “scene”) ---
+  function draw(t){
+    const time = t * 0.001;
+    ctx.clearRect(0,0,W,H);
+
+    // screen shake
+    if (shake > 0) shake *= 0.88;
+    const sx = (Math.random()-0.5) * shake;
+    const sy = (Math.random()-0.5) * shake;
+
+    ctx.save();
+    ctx.translate(sx, sy);
+
+    // Background gradient already on body; paint subtle fog layers
+    // Parallax silhouettes
+    const horizon = H * 0.62;
+
+    // Mist
+    for (let i=0;i<5;i++){
+      const y = lerp(horizon-120, H, i/4);
+      const a = 0.10 + i*0.03;
+      ctx.fillStyle = `rgba(120,170,255,${a})`;
+      ctx.beginPath();
+      ctx.ellipse(W*0.5 + Math.sin(time*0.6+i)*30, y + Math.cos(time*0.4+i)*12, W*0.65, 70 + i*22, 0, 0, Math.PI*2);
+      ctx.fill();
+    }
+
+    // Ground
+    ctx.fillStyle = "rgba(4,6,10,0.85)";
+    ctx.fillRect(0,horizon, W, H-horizon);
+
+    // Floor glow line
+    ctx.strokeStyle = "rgba(95,208,255,0.18)";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(0,horizon+18);
+    ctx.lineTo(W,horizon+18);
+    ctx.stroke();
+
+    // Player silhouette (left)
+    const px = W*0.27, py = horizon+10;
+    ctx.save();
+    ctx.translate(px, py);
+    ctx.fillStyle = "rgba(10,14,22,0.92)";
+    ctx.strokeStyle = "rgba(95,208,255,0.26)";
+    ctx.lineWidth = 2;
+
+    // body
+    ctx.beginPath();
+    ctx.roundRect(-32,-120,64,120,14);
+    ctx.fill();
+    ctx.stroke();
+
+    // cloak edge glow
+    ctx.strokeStyle = "rgba(179,107,255,0.22)";
+    ctx.beginPath();
+    ctx.moveTo(-32,-92);
+    ctx.quadraticCurveTo(-68,-58,-52,-12);
+    ctx.quadraticCurveTo(-40,40,-18,62);
+    ctx.stroke();
+
+    // head
+    ctx.fillStyle = "rgba(14,18,28,0.96)";
+    ctx.beginPath();
+    ctx.arc(0,-142,20,0,Math.PI*2);
+    ctx.fill();
+
+    ctx.restore();
+
+    // Enemy silhouette (right)
+    const ex = W*0.73, ey = horizon+6;
+    ctx.save();
+    ctx.translate(ex, ey);
+    ctx.fillStyle = "rgba(12,10,14,0.94)";
+    ctx.strokeStyle = "rgba(255,109,122,0.22)";
+    ctx.lineWidth = 2;
+
+    // torso
+    ctx.beginPath();
+    ctx.roundRect(-44,-150,88,150,16);
+    ctx.fill();
+    ctx.stroke();
+
+    // shoulders
+    ctx.fillStyle = "rgba(10,8,12,0.96)";
+    ctx.beginPath();
+    ctx.roundRect(-70,-148,50,40,14);
+    ctx.roundRect(20,-148,50,40,14);
+    ctx.fill();
+
+    // helm
+    ctx.beginPath();
+    ctx.arc(0,-176,26,0,Math.PI*2);
+    ctx.fill();
+
+    // violet rune-like glow (abstract)
+    ctx.fillStyle = "rgba(179,107,255,0.14)";
+    ctx.beginPath();
+    ctx.ellipse(0,-78, 18, 28, 0, 0, Math.PI*2);
+    ctx.fill();
+
+    ctx.restore();
+
+    // Vignette
+    const grad = ctx.createRadialGradient(W*0.5, H*0.45, Math.min(W,H)*0.2, W*0.5, H*0.5, Math.max(W,H)*0.8);
+    grad.addColorStop(0, "rgba(0,0,0,0)");
+    grad.addColorStop(1, "rgba(0,0,0,0.55)");
+    ctx.fillStyle = grad;
+    ctx.fillRect(0,0,W,H);
+
+    ctx.restore();
+
+    // Update timing cursor UI
+    if (timing.active){
+      // move cursor back-and-forth
+      const dt = 1/60;
+      timing.cursor += timing.dir * timing.speed * dt;
+      if (timing.cursor >= 1){ timing.cursor = 1; timing.dir = -1; }
+      if (timing.cursor <= 0){ timing.cursor = 0; timing.dir =  1; }
+
+      cursorEl.style.left = (timing.cursor * 100) + "%";
+    }
+
+    requestAnimationFrame(draw);
+  }
+
+  // Polyfill for roundRect (older browsers)
+  if (!CanvasRenderingContext2D.prototype.roundRect){
+    CanvasRenderingContext2D.prototype.roundRect = function(x,y,w,h,r){
+      r = Math.min(r, w/2, h/2);
+      this.beginPath();
+      this.moveTo(x+r, y);
+      this.lineTo(x+w-r, y);
+      this.quadraticCurveTo(x+w, y, x+w, y+r);
+      this.lineTo(x+w, y+h-r);
+      this.quadraticCurveTo(x+w, y+h, x+w-r, y+h);
+      this.lineTo(x+r, y+h);
+      this.quadraticCurveTo(x, y+h, x, y+h-r);
+      this.lineTo(x, y+r);
+      this.quadraticCurveTo(x, y, x+r, y);
+      this.closePath();
+      return this;
+    }
+  }
+
+  // Start
+  setMessage("Your turn.");
+  uiState();
+  requestAnimationFrame(draw);
+})();
+</script>
+</body>
+</html>
